@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MuteUI — Your Feed, Your Rules</title>
+  <meta name="description" content="Hide verified bots, mute keywords, collapse spam, and replace any word across X, YouTube, Instagram, TikTok and Facebook." />
+  <link rel="icon" href="icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #06060e;
+      --glass: rgba(255,255,255,0.04);
+      --glass-h: rgba(255,255,255,0.07);
+      --glass-brd: rgba(255,255,255,0.08);
+      --t1: rgba(255,255,255,0.95);
+      --t2: rgba(255,255,255,0.55);
+      --t3: rgba(255,255,255,0.25);
+      --red: #f21818;
+      --red-g: linear-gradient(135deg, #f21818, #ff4d4d);
+      --font: 'Outfit', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--t1);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Aurora Background ──────────────────────────────────── */
+    .aurora {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 50% at 15% 5%, rgba(140,60,200,0.35) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 85% 15%, rgba(80,40,160,0.3) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 45% at 50% 85%, rgba(200,100,60,0.2) 0%, transparent 50%),
+        radial-gradient(ellipse 40% 35% at 75% 90%, rgba(220,130,80,0.15) 0%, transparent 45%),
+        radial-gradient(ellipse 35% 30% at 25% 55%, rgba(60,80,180,0.2) 0%, transparent 50%);
+      background-size: 200% 200%;
+      animation: auroraDrift 25s ease-in-out infinite;
+    }
+    @keyframes auroraDrift {
+      0%   { background-position: 0% 0%; }
+      50%  { background-position: 100% 100%; }
+      100% { background-position: 0% 0%; }
+    }
+
+    /* ── Grain overlay ──────────────────────────────────────── */
+    .grain {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+    }
+
+    /* ── Animations ─────────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%      { transform: translateY(-12px); }
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(242,24,24,0.3); }
+      50%      { box-shadow: 0 0 0 16px rgba(242,24,24,0); }
+    }
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .container {
+      position: relative; z-index: 2;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(6,6,14,0.6);
+      -webkit-backdrop-filter: blur(24px) saturate(1.3);
+      backdrop-filter: blur(24px) saturate(1.3);
+      border-bottom: 0.5px solid var(--glass-brd);
+    }
+    nav .inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; color: var(--t1);
+    }
+    .nav-brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .nav-brand span { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      color: var(--t2); text-decoration: none; font-size: 14px; font-weight: 400;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--t1); }
+    .nav-cta {
+      background: var(--red-g) !important; color: #fff !important;
+      padding: 8px 20px; border-radius: 8px; font-weight: 600 !important;
+      font-size: 13px !important; transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .nav-cta:hover { transform: scale(1.04); box-shadow: 0 4px 20px rgba(242,24,24,0.3); }
+
+    /* ── Hero ───────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+    }
+    .hero-content { max-width: 680px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      border: 0.5px solid var(--glass-brd);
+      border-radius: 99px;
+      padding: 6px 16px 6px 8px;
+      font-size: 12px; font-weight: 500; color: var(--t2);
+      margin-bottom: 28px;
+      animation: fadeUp 0.8s ease both;
+    }
+    .hero-badge .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+    .hero h1 {
+      font-size: clamp(42px, 7vw, 72px);
+      font-weight: 800;
+      letter-spacing: -2.5px;
+      line-height: 1.05;
+      margin-bottom: 20px;
+      animation: fadeUp 0.8s ease 0.1s both;
+    }
+    .hero h1 .accent {
+      background: var(--red-g);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 18px; line-height: 1.65; color: var(--t2);
+      max-width: 520px; margin: 0 auto 36px;
+      animation: fadeUp 0.8s ease 0.2s both;
+    }
+    .hero-actions {
+      display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+      animation: fadeUp 0.8s ease 0.3s both;
+    }
+    .btn-primary {
+      background: var(--red-g);
+      color: #fff; border: none; border-radius: 12px;
+      padding: 14px 32px;
+      font-size: 15px; font-weight: 600; font-family: var(--font);
+      cursor: pointer; text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 30px rgba(242,24,24,0.35);
+    }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-secondary {
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      border: 0.5px solid var(--glass-brd);
+      color: var(--t1); border-radius: 12px;
+      padding: 14px 32px;
+      font-size: 15px; font-weight: 500; font-family: var(--font);
+      cursor: pointer; text-decoration: none;
+      transition: background 0.2s, transform 0.2s;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-secondary:hover { background: var(--glass-h); transform: translateY(-2px); }
+
+    .hero-visual {
+      margin-top: 60px;
+      animation: fadeUp 1s ease 0.5s both;
+    }
+    .hero-mockup {
+      width: 320px; margin: 0 auto;
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(40px) saturate(1.4);
+      backdrop-filter: blur(40px) saturate(1.4);
+      border: 0.5px solid var(--glass-brd);
+      border-radius: 20px;
+      padding: 24px 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4), inset 0 0.5px 0 rgba(255,255,255,0.06);
+      animation: float 6s ease-in-out infinite;
+    }
+    .mockup-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .mockup-header img { width: 24px; height: 24px; border-radius: 6px; }
+    .mockup-header span { font-size: 16px; font-weight: 600; }
+    .mockup-desc { font-size: 11px; color: var(--t2); margin-bottom: 16px; line-height: 1.5; }
+    .mockup-card {
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px);
+      border: 0.5px solid var(--glass-brd);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 6px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .mockup-card-left { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
+    .mockup-chev { color: var(--t3); font-size: 14px; }
+
+    /* ── Section titles ─────────────────────────────────────── */
+    section { padding: 100px 0; }
+    .section-label {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--red);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(30px, 4.5vw, 48px);
+      font-weight: 700; letter-spacing: -1.5px;
+      line-height: 1.1; margin-bottom: 16px;
+    }
+    .section-desc {
+      font-size: 17px; line-height: 1.65; color: var(--t2);
+      max-width: 560px;
+    }
+    .section-header { margin-bottom: 56px; }
+
+    /* ── Features ───────────────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .feature-card {
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(20px) saturate(1.1);
+      backdrop-filter: blur(20px) saturate(1.1);
+      border: 0.5px solid var(--glass-brd);
+      border-radius: 16px;
+      padding: 28px 24px;
+      transition: background 0.25s, transform 0.25s, box-shadow 0.25s;
+    }
+    .feature-card:hover {
+      background: var(--glass-h);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+    .feature-icon {
+      width: 44px; height: 44px;
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      margin-bottom: 16px;
+      background: rgba(242,24,24,0.1);
+      border: 0.5px solid rgba(242,24,24,0.15);
+    }
+    .feature-card h3 {
+      font-size: 16px; font-weight: 600; margin-bottom: 8px;
+      letter-spacing: -0.3px;
+    }
+    .feature-card p { font-size: 13.5px; line-height: 1.6; color: var(--t2); }
+
+    /* ── Platforms ──────────────────────────────────────────── */
+    .platforms-row {
+      display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+      margin-top: 40px;
+    }
+    .platform-pill {
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      border: 0.5px solid var(--glass-brd);
+      border-radius: 99px;
+      padding: 12px 24px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; font-weight: 500;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .platform-pill:hover { background: var(--glass-h); transform: scale(1.04); }
+    .platform-pill .pi { font-size: 20px; }
+
+    /* ── Pricing ────────────────────────────────────────────── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      max-width: 740px;
+      margin: 0 auto;
+    }
+    .price-card {
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(24px) saturate(1.2);
+      backdrop-filter: blur(24px) saturate(1.2);
+      border: 0.5px solid var(--glass-brd);
+      border-radius: 20px;
+      padding: 36px 28px;
+      position: relative;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .price-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.3);
+    }
+    .price-card.featured {
+      border-color: rgba(242,24,24,0.3);
+      box-shadow: 0 0 0 1px rgba(242,24,24,0.15), 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .price-card.featured::before {
+      content: "";
+      position: absolute; inset: -1px;
+      border-radius: 21px;
+      background: linear-gradient(135deg, rgba(242,24,24,0.2), transparent 50%);
+      z-index: -1;
+    }
+    .price-tag {
+      display: inline-block;
+      background: var(--red-g);
+      color: #fff;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    .price-name {
+      font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .price-cost {
+      font-size: 40px; font-weight: 800; letter-spacing: -2px;
+      margin-bottom: 4px;
+    }
+    .price-cost .per { font-size: 15px; font-weight: 400; color: var(--t2); letter-spacing: 0; }
+    .price-cost .currency { font-size: 20px; font-weight: 500; vertical-align: top; }
+    .price-sub { font-size: 13px; color: var(--t2); margin-bottom: 24px; }
+    .price-features { list-style: none; margin-bottom: 28px; }
+    .price-features li {
+      font-size: 13.5px; color: var(--t2); padding: 7px 0;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 0.5px solid var(--glass-brd);
+    }
+    .price-features li:last-child { border: none; }
+    .price-features .check { color: #22c55e; font-size: 15px; flex-shrink: 0; }
+    .price-features .cross { color: var(--t3); font-size: 15px; flex-shrink: 0; }
+    .price-btn {
+      display: block; width: 100%; text-align: center;
+      padding: 13px; border-radius: 10px;
+      font-size: 14px; font-weight: 600; font-family: var(--font);
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      cursor: pointer; border: none;
+    }
+    .price-btn.primary {
+      background: var(--red-g); color: #fff;
+    }
+    .price-btn.primary:hover {
+      transform: scale(1.03);
+      box-shadow: 0 6px 24px rgba(242,24,24,0.3);
+    }
+    .price-btn.secondary {
+      background: var(--glass); color: var(--t1);
+      border: 0.5px solid var(--glass-brd);
+    }
+    .price-btn.secondary:hover { background: var(--glass-h); }
+    .trial-note {
+      text-align: center; margin-top: 20px;
+      font-size: 13px; color: var(--t3);
+    }
+
+    /* ── How it works ──────────────────────────────────────── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px; margin-top: 48px;
+    }
+    .step {
+      text-align: center; padding: 20px;
+    }
+    .step-num {
+      font-family: var(--mono);
+      font-size: 48px; font-weight: 800;
+      background: var(--red-g);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1; margin-bottom: 14px;
+    }
+    .step h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .step p { font-size: 13px; color: var(--t2); line-height: 1.55; }
+
+    /* ── CTA ────────────────────────────────────────────────── */
+    .cta-section {
+      text-align: center;
+      padding: 80px 0 120px;
+    }
+    .cta-glass {
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(32px) saturate(1.3);
+      backdrop-filter: blur(32px) saturate(1.3);
+      border: 0.5px solid var(--glass-brd);
+      border-radius: 24px;
+      padding: 64px 40px;
+      box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.06);
+    }
+    .cta-glass h2 {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 700; letter-spacing: -1.5px;
+      margin-bottom: 14px;
+    }
+    .cta-glass p {
+      font-size: 16px; color: var(--t2); margin-bottom: 32px;
+      max-width: 440px; margin-left: auto; margin-right: auto;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    footer {
+      border-top: 0.5px solid var(--glass-brd);
+      padding: 32px 0;
+      text-align: center;
+      font-size: 12px; color: var(--t3);
+      position: relative; z-index: 2;
+    }
+    footer a { color: var(--t2); text-decoration: none; }
+    footer a:hover { color: var(--t1); }
+
+    /* ── Mobile ─────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .nav-links a:not(.nav-cta) { display: none; }
+      .hero { padding: 100px 20px 60px; }
+      .hero-actions { flex-direction: column; align-items: center; }
+      .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+      section { padding: 60px 0; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .cta-glass { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="aurora"></div>
+<div class="grain"></div>
+
+<!-- Nav -->
+<nav>
+  <div class="inner">
+    <a href="#" class="nav-brand">
+      <img src="icon.png" alt="MuteUI" />
+      <span>MuteUI</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#install">Install</a>
+      <a href="#pricing" class="nav-cta">Start Free Trial</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge"><span class="dot"></span> Now available for Chrome</div>
+      <h1>Your feed,<br/>your <span class="accent">rules.</span></h1>
+      <p>Hide verified bots, mute keywords, collapse spam, and replace any word — across X, YouTube, Instagram, TikTok and Facebook.</p>
+      <div class="hero-actions">
+        <a href="#pricing" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Start 1-Month Free Trial
+        </a>
+        <a href="#features" class="btn-secondary">See Features ↓</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-mockup">
+        <div class="mockup-header"><img src="icon.png" alt="" /><span>MuteUI</span></div>
+        <div class="mockup-desc">Mute words, hide accounts, collapse verified bots, and replace anything across the web.</div>
+        <div class="mockup-card"><div class="mockup-card-left">✏️ WebReplace</div><span class="mockup-chev">›</span></div>
+        <div class="mockup-card"><div class="mockup-card-left">𝕏 X / Twitter</div><span class="mockup-chev">›</span></div>
+        <div class="mockup-card"><div class="mockup-card-left">▶ YouTube</div><span class="mockup-chev">›</span></div>
+        <div class="mockup-card"><div class="mockup-card-left">📷 Instagram</div><span class="mockup-chev">›</span></div>
+        <div class="mockup-card"><div class="mockup-card-left">♪ TikTok</div><span class="mockup-chev">›</span></div>
+        <div class="mockup-card"><div class="mockup-card-left">f Facebook</div><span class="mockup-chev">›</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Everything you need to<br/>take back your feed.</h2>
+      <p class="section-desc">One extension. Six platforms. Total control over what you see and what you never see again.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon">🛡️</div>
+        <h3>Collapse Verified Spam</h3>
+        <p>Blue-check bot replies on X get collapsed under a "Verified Comments" banner. Expand when you want, hidden by default.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">🔇</div>
+        <h3>Mute Keywords</h3>
+        <p>Add words or phrases you never want to see. Comments containing them vanish behind a "Filtered" banner on every platform.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">👤</div>
+        <h3>Mute Accounts</h3>
+        <p>Block specific accounts from appearing in comment sections. Per-platform, so your YouTube mutes stay separate from X.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">✏️</div>
+        <h3>WebReplace</h3>
+        <p>Find and replace any word on any website. Delete words you're tired of or swap them for something better. Whole-word matching.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">🎨</div>
+        <h3>Theme Matching</h3>
+        <p>Automatically detects dark, light, and dim modes on every platform. The popup matches whatever site you're on.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">⚡</div>
+        <h3>Zero Lag</h3>
+        <p>Verified hiding uses pure CSS. Keyword filtering is lightweight JS. No scroll jank. No performance hit. No tracking.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Platforms -->
+<section>
+  <div class="container" style="text-align:center">
+    <div class="reveal">
+      <div class="section-label">Platforms</div>
+      <h2 class="section-title">Works everywhere<br/>you scroll.</h2>
+    </div>
+    <div class="platforms-row reveal">
+      <div class="platform-pill"><span class="pi">𝕏</span> X / Twitter</div>
+      <div class="platform-pill"><span class="pi">▶</span> YouTube</div>
+      <div class="platform-pill"><span class="pi">📷</span> Instagram</div>
+      <div class="platform-pill"><span class="pi">♪</span> TikTok</div>
+      <div class="platform-pill"><span class="pi">f</span> Facebook</div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section id="install">
+  <div class="container" style="text-align:center">
+    <div class="reveal">
+      <div class="section-label">Setup</div>
+      <h2 class="section-title">Ready in 30 seconds.</h2>
+    </div>
+    <div class="steps reveal">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>Install the extension</h3>
+        <p>Add MuteUI to Chrome from the Chrome Web Store. One click.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>Open MuteUI</h3>
+        <p>Click the icon in your toolbar. The glassmorphism popup opens.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>Add your rules</h3>
+        <p>Mute words, block accounts, enable verified collapse, add replacements.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <h3>Browse in peace</h3>
+        <p>Your rules apply instantly. No page refresh needed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing">
+  <div class="container" style="text-align:center">
+    <div class="section-header reveal" style="text-align:center">
+      <div class="section-label">Pricing</div>
+      <h2 class="section-title">Start free. Upgrade<br/>when you need more.</h2>
+      <p class="section-desc" style="margin:0 auto">Every plan includes a 1-month free trial. Cancel anytime before it renews.</p>
+    </div>
+    <div class="pricing-grid reveal">
+      <!-- Free -->
+      <div class="price-card">
+        <div class="price-name">Free</div>
+        <div class="price-cost"><span class="currency">$</span>0</div>
+        <p class="price-sub">Forever free</p>
+        <ul class="price-features">
+          <li><span class="check">✓</span> Verified collapse on X</li>
+          <li><span class="check">✓</span> Theme matching</li>
+          <li><span class="check">✓</span> 2 muted words per platform</li>
+          <li><span class="check">✓</span> 2 muted accounts per platform</li>
+          <li><span class="check">✓</span> 2 WebReplace rules</li>
+          <li><span class="cross">—</span> Unlimited muting</li>
+          <li><span class="cross">—</span> Unlimited WebReplace</li>
+        </ul>
+        <a href="#install" class="price-btn secondary">Install Free</a>
+      </div>
+      <!-- Premium -->
+      <div class="price-card featured">
+        <div class="price-tag">1 Month Free Trial</div>
+        <div class="price-name">Premium</div>
+        <div class="price-cost"><span class="currency">$</span>1<span class="per">.99 / mo</span></div>
+        <p class="price-sub">First month free. Cancel anytime.</p>
+        <ul class="price-features">
+          <li><span class="check">✓</span> Everything in Free</li>
+          <li><span class="check">✓</span> <strong>Unlimited</strong> muted words</li>
+          <li><span class="check">✓</span> <strong>Unlimited</strong> muted accounts</li>
+          <li><span class="check">✓</span> <strong>Unlimited</strong> WebReplace rules</li>
+          <li><span class="check">✓</span> Priority support</li>
+          <li><span class="check">✓</span> All future features</li>
+        </ul>
+        <!-- ▶ REPLACE THIS with your Stripe payment link -->
+        <a href="https://buy.stripe.com/YOUR_LINK" class="price-btn primary">Start Free Trial →</a>
+      </div>
+    </div>
+    <p class="trial-note reveal">1-month free trial. No charge until day 31. Cancel anytime — no questions asked.</p>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-glass reveal">
+      <h2>Stop scrolling through noise.</h2>
+      <p>Install MuteUI, set your rules in 30 seconds, and never see bot spam again.</p>
+      <a href="#pricing" class="btn-primary">Start 1-Month Free Trial</a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <p>MuteUI © 2026 — Built for people who are tired of the noise.</p>
+    <p style="margin-top:6px">
+      <a href="#">Chrome Web Store</a> · <a href="#">GitHub</a> · <a href="#">Contact</a>
+    </p>
+  </div>
+</footer>
+
+<!-- Scroll reveal -->
+<script>
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add("visible"); obs.unobserve(e.target); }
+    });
+  }, { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
+  document.querySelectorAll(".reveal").forEach(el => obs.observe(el));
+</script>
+
+</body>
+</html>
