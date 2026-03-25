@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MuteUI — Privacy Policy</title>
+  <link rel="icon" href="icon.png" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      background: #06060e; color: rgba(255,255,255,0.88);
+      line-height: 1.7; font-size: 15px;
+    }
+    .wrap {
+      max-width: 640px; margin: 0 auto;
+      padding: 60px 24px 80px;
+    }
+    a { color: rgba(255,255,255,0.6); }
+    a:hover { color: #fff; }
+    .back { font-size: 13px; margin-bottom: 32px; display: inline-block; }
+    h1 { font-size: 28px; font-weight: 700; letter-spacing: -1px; margin-bottom: 6px; }
+    .date { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 32px; }
+    h2 { font-size: 17px; font-weight: 600; margin: 28px 0 8px; color: rgba(255,255,255,0.95); }
+    p { margin-bottom: 14px; color: rgba(255,255,255,0.65); }
+    ul { margin: 0 0 14px 20px; color: rgba(255,255,255,0.65); }
+    li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="https://detectapc-star.github.io/muteui/" class="back">← Back to MuteUI</a>
+    <h1>Privacy Policy</h1>
+    <p class="date">Last updated: March 25, 2026</p>
+
+    <h2>What MuteUI does</h2>
+    <p>MuteUI is a Chrome extension that hides comments, posts, and words on social media websites based on rules you set. It also validates license keys for premium access.</p>
+
+    <h2>Data that stays on your device</h2>
+    <p>All of your settings are stored locally in your browser using Chrome's storage API. This includes:</p>
+    <ul>
+      <li>Muted keywords and accounts per platform</li>
+      <li>WebReplace rules</li>
+      <li>Toggle states and theme preferences</li>
+      <li>A randomly generated device ID (used only for license validation)</li>
+    </ul>
+    <p>None of this data is sent to us, shared with anyone, or used for analytics.</p>
+
+    <h2>Data sent to our server</h2>
+    <p>When you activate a license key or when the extension checks your subscription status, two pieces of information are sent to our API server:</p>
+    <ul>
+      <li>Your license key</li>
+      <li>Your device ID (a random string, not tied to your identity)</li>
+    </ul>
+    <p>The server responds with whether the key is valid. That's it. No browsing history, no muted words, no account names, no page content.</p>
+
+    <h2>Data stored on our server</h2>
+    <p>If you purchase a subscription through Stripe, our server stores:</p>
+    <ul>
+      <li>The email address you provided at checkout</li>
+      <li>Your generated license key</li>
+      <li>Device IDs registered to that key (up to 3)</li>
+      <li>Subscription status from Stripe</li>
+    </ul>
+    <p>We do not store passwords, payment details, browsing data, or anything related to what you mute or filter.</p>
+
+    <h2>Stripe</h2>
+    <p>Payments are handled by Stripe. We never see or store your credit card number. Stripe's privacy policy applies to payment processing: <a href="https://stripe.com/privacy" target="_blank">stripe.com/privacy</a></p>
+
+    <h2>Third parties</h2>
+    <p>We do not sell, share, or transfer your data to any third party for any reason. We do not run ads. We do not use analytics or tracking scripts in the extension or on this website.</p>
+
+    <h2>Cookies</h2>
+    <p>This website and the extension do not use cookies.</p>
+
+    <h2>Your rights</h2>
+    <p>You can delete all your local data by uninstalling the extension. If you want your server-side data removed (license key, email, device IDs), email us and we'll delete it.</p>
+
+    <h2>Contact</h2>
+    <p>If you have questions about this policy, reach out at the support page on the Chrome Web Store listing.</p>
+  </div>
+</body>
+</html>
